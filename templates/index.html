@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pick My Car — Price Estimator</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Nunito:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <div class="wrapper">
+
+        <!-- Header -->
+        <header>
+            <div class="eyebrow">Resale Value Estimator</div>
+            <h1>Pick My <em>Car</em></h1>
+            <p class="subtitle">Smart pricing for your used car — powered by machine learning</p>
+        </header>
+
+        <!-- Card -->
+        <div class="card">
+            <div class="card-top">
+                <span class="card-top-label">Vehicle Details</span>
+                <div class="card-top-dots">
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <form name="Modelform" onsubmit="return false;">
+
+                    <!-- Manufacturer -->
+                    <div class="field">
+                        <label>Manufacturer</label>
+                        <div class="select-wrap">
+                            <select id="company" name="company" required onchange="load_car_models()">
+                                {% for company in companies %}
+                                <option value="{{ company }}">{{ company }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Car Model -->
+                    <div class="field">
+                        <label>Car Model</label>
+                        <div class="select-wrap">
+                            <select id="car_name" name="car_name" required>
+                                <option value="">— Select manufacturer first —</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Year + Fuel Type -->
+                    <div class="row-2">
+                        <div class="field">
+                            <label>Year</label>
+                            <div class="select-wrap">
+                                <select id="year" name="year" required>
+                                    {% for year in years %}
+                                    <option value="{{ year }}">{{ year }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label>Fuel Type</label>
+                            <div class="select-wrap">
+                                <select id="fuel_type" name="fuel_type" required>
+                                    {% for fuel in fuel_types %}
+                                    <option value="{{ fuel }}">{{ fuel }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kilometres Driven -->
+                    <div class="field">
+                        <label>Kilometres Driven</label>
+                        <input type="number" id="kms_driven" name="kms_driven"
+                               placeholder="e.g. 45000" min="0" required>
+                    </div>
+
+                    <hr class="divider">
+
+                    <button class="btn" id="predict-btn" type="button" onclick="send_data()">
+                        <span class="btn-icon">⟡</span> Get Price Estimate
+                    </button>
+
+                </form>
+
+                <!-- Result -->
+                <div class="result" id="result-box">
+                    <div class="result-label" id="result-label">Estimated Resale Price</div>
+                    <div class="result-value" id="result-value"></div>
+                    <div class="result-sub" id="result-sub"></div>
+                    <div class="result-badge" id="result-badge" style="display:none">ML Estimate</div>
+                </div>
+            </div>
+        </div>
+
+        <footer>Pick My Car &nbsp;·&nbsp; ML-Powered &nbsp;·&nbsp; For Reference Only</footer>
+
+    </div>
+
+    <script>
+    const companyCarMap = {{ company_car_map | tojson }};
+
+    function load_car_models() {
+        const companySelect = document.getElementById('company');
+        const carSelect     = document.getElementById('car_name');
+        const selected      = companySelect.value;
+        carSelect.innerHTML = '';
+
+        if (!selected || selected === 'Select Company') {
+            carSelect.innerHTML = '<option value="">— Select manufacturer first —</option>';
+            return;
+        }
+
+        (companyCarMap[selected] || []).forEach(function(model) {
+            const opt       = document.createElement('option');
+            opt.value       = model;
+            opt.textContent = model;
+            carSelect.appendChild(opt);
+        });
+    }
+
+    function formatINR(amount) {
+        const num = parseFloat(amount);
+        if (isNaN(num)) return { display: amount, isFormatted: false };
+        if (num >= 100000) return { display: (num / 100000).toFixed(2), suffix: ' Lakh', isFormatted: true };
+        return { display: num.toLocaleString('en-IN'), isFormatted: true };
+    }
+
+    function send_data() {
+        const company   = document.getElementById('company').value;
+        const car_name  = document.getElementById('car_name').value;
+        const year      = document.getElementById('year').value;
+        const fuel_type = document.getElementById('fuel_type').value;
+        const kms       = document.getElementById('kms_driven').value;
+
+        const resultBox   = document.getElementById('result-box');
+        const resultVal   = document.getElementById('result-value');
+        const resultSub   = document.getElementById('result-sub');
+        const resultLbl   = document.getElementById('result-label');
+        const resultBadge = document.getElementById('result-badge');
+        const btn         = document.getElementById('predict-btn');
+
+        if (!company || company === 'Select Company' || !car_name || !year || !fuel_type || !kms) {
+            resultBox.className      = 'result visible error';
+            resultVal.className      = 'result-value err';
+            resultLbl.textContent    = 'Incomplete Details';
+            resultVal.textContent    = 'Please fill in all fields before estimating.';
+            resultSub.textContent    = '';
+            resultBadge.style.display = 'none';
+            return;
+        }
+
+        btn.classList.add('loading');
+        btn.innerHTML             = '<span class="btn-icon">⟳</span> Calculating...';
+        resultBox.className       = 'result visible success';
+        resultVal.className       = 'result-value';
+        resultLbl.textContent     = 'Estimating...';
+        resultVal.innerHTML       = '—';
+        resultSub.textContent     = '';
+        resultBadge.style.display = 'none';
+
+        const fd = new FormData();
+        fd.append('company',    company);
+        fd.append('car_name',   car_name);
+        fd.append('year',       year);
+        fd.append('fuel_type',  fuel_type);
+        fd.append('kms_driven', kms);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/predict', true);
+
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                btn.classList.remove('loading');
+                btn.innerHTML = '<span class="btn-icon">⟡</span> Get Price Estimate';
+
+                if (xhr.status === 200) {
+                    const fmt             = formatINR(xhr.responseText.trim());
+                    resultBox.className   = 'result visible success';
+                    resultVal.className   = 'result-value';
+                    resultLbl.textContent = 'Estimated Resale Price';
+
+                    resultVal.innerHTML = fmt.isFormatted
+                        ? '<span class="currency">₹</span>' + fmt.display + (fmt.suffix || '')
+                        : '₹' + fmt.display;
+
+                    resultSub.textContent     = car_name + '  ·  ' + year + '  ·  ' + fuel_type + '  ·  ' + parseInt(kms).toLocaleString('en-IN') + ' km';
+                    resultBadge.style.display = 'inline-block';
+                } else {
+                    resultBox.className       = 'result visible error';
+                    resultVal.className       = 'result-value err';
+                    resultLbl.textContent     = 'Prediction Failed';
+                    resultVal.textContent     = 'Something went wrong. Please try again.';
+                    resultSub.textContent     = '';
+                    resultBadge.style.display = 'none';
+                }
+            }
+        };
+
+        xhr.send(fd);
+    }
+    </script>
+
+</body>
+</html>

@@ -47,7 +47,7 @@ pick-my-car/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/pick-my-car.git
+git clone https://github.com/ayush-130904/price_my_car.git
 cd pick-my-car
 ```
 

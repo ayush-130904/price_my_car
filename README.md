@@ -114,7 +114,9 @@ gunicorn app:app
 
 ## 📸 Preview
 
-> Home page with dynamic dropdowns filtered by manufacturer, and instant price prediction on form submission.
+<img width="1886" height="992" alt="Screenshot (91)" src="https://github.com/user-attachments/assets/c4ba8271-25f2-4444-a4e0-3f743ed4a94a" />
+
+
 
 ---
 

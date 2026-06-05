@@ -105,7 +105,7 @@ gunicorn app:app
 
 ## 📊 Dataset
 
-- Source: Quikr used car listings (`quikr.csv`)
+- Source: Scrapped Data from Quikr.com, listing cars required information(`quikr.csv`)
 - Preprocessed into `Cleaned_car.csv` — missing values removed, data types corrected, outliers handled.
 - Features used: `car_name`, `company_name`, `year`, `kms_driven`, `fuel_type`
 - Target: `Price` (in INR)
